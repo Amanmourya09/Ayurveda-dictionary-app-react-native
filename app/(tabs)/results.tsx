@@ -1,10 +1,11 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
@@ -20,9 +21,18 @@ import {
 } from 'react-native';
 import API from '../utils/api';
 
+interface DictionaryEntry {
+  Word: string;
+  Gender?: string;
+  Description?: string;
+  Reference?: string;
+  Meaning?: string;
+  Book?: string;
+}
+
 export default function ResultsScreen() {
   const { word, filter } = useLocalSearchParams();
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<DictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const colorScheme = useColorScheme();
@@ -31,24 +41,42 @@ export default function ResultsScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites(); // refresh on screen focus
+    }, [])
+  );
+
   useEffect(() => {
-    loadFavorites();
     fetchResults();
   }, [word, filter]);
+
 
   const fetchResults = async () => {
     if (!word) return;
     setLoading(true);
     try {
-      const response = await API.get('/word', {
-        params: {
-          word: word,
-          filter: filter || undefined
-        }
-      });
+      const params: any = {
+        limit: 63000,
+      };
 
-      if (response.data.success) {
-        const allResults = response.data.results || [];
+      if (!filter) {
+        // No filter selected — search by Word by default
+        params.Book = 'Ayurveda Shabdkosh';
+        params.Word = word;
+      } else if (filter === 'Book') {
+        params.Book = word;
+      } else {
+        params.Book = 'Ayurveda Shabdkosh'; // default book
+        params[filter as string] = word;
+      }
+
+
+      const response = await API.get('/index.php', { params });
+
+
+      if (response.data.status === "success") {
+        const allResults = response.data.data || [];
         setResults(allResults);
         setTotalPages(Math.ceil(allResults.length / itemsPerPage));
         setCurrentPage(1);
@@ -67,36 +95,52 @@ export default function ResultsScreen() {
     }
   };
 
+  // ... rest of the component remains the same ...
+
   const loadFavorites = async () => {
-    const stored = await AsyncStorage.getItem('favorites');
-    if (stored) setFavorites(JSON.parse(stored));
+    try {
+      const stored = await AsyncStorage.getItem('favorites');
+      if (stored) setFavorites(JSON.parse(stored));
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+    }
   };
 
   const toggleFavorite = async (term: string) => {
-    const updated = favorites.includes(term)
-      ? favorites.filter(item => item !== term)
-      : [...favorites, term];
-    setFavorites(updated);
-    await AsyncStorage.setItem('favorites', JSON.stringify(updated));
+    try {
+      const updated = favorites.includes(term)
+        ? favorites.filter(item => item !== term)
+        : [...favorites, term];
+      setFavorites(updated);
+      await AsyncStorage.setItem('favorites', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving favorites:', error);
+    }
   };
 
   const speak = (text: string) => {
     Speech.speak(text, {
-      language: 'hi-IN',
+      language: 'sa-IN',
       pitch: 1.0,
-      rate: 1.0,
+      rate: 0.9,
+      voice: 'com.google.android.tts:sa-in-x-saa-local',
+
     });
   };
 
   const copyToClipboard = async (text: string, type: 'word' | 'meaning') => {
-    await Clipboard.setStringAsync(text);
-    Alert.alert(
-      'Copied!',
-      type === 'word'
-        ? 'Word copied to clipboard'
-        : 'Meaning copied to clipboard',
-      [{ text: 'OK' }]
-    );
+    try {
+      await Clipboard.setStringAsync(text);
+      Alert.alert(
+        'Copied!',
+        type === 'word'
+          ? 'Word copied to clipboard'
+          : 'Description copied to clipboard',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
   };
 
   const goToNextPage = () => {
@@ -119,8 +163,11 @@ export default function ResultsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, isDark && styles.darkBg]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#121212' : '#f8faff'} translucent={false} />
-      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#121212' : '#f8faff'} />
+      <Stack.Screen options={{
+        headerTitle: `Results for "${word}"`,
+        headerBackTitle: 'Back'
+      }} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -134,78 +181,92 @@ export default function ResultsScreen() {
           </Text>
         ) : (
           <>
-            {/* Top: Only show styled "Showing results for..." */}
-            <View style={styles.resultsHeaderOnly}>
-              <Text style={[styles.searchInfo, isDark && styles.lightText]}>
-                Showing {results.length} results for "{word}" {filter ? `in ${filter}` : ''}
-              </Text>
-            </View>
+            <Text style={[styles.searchInfo, isDark && styles.lightText]}>
+              Showing {results.length} results for "{word}"
+            </Text>
 
-            {/* Paginated results */}
             {getPaginatedResults().map((result, index) => (
               <View key={index} style={[styles.resultCard, isDark && styles.darkCard]}>
                 <View style={styles.resultHeader}>
                   <Text style={[styles.word, isDark && styles.lightText]}>
-                    {result.पद}
+                    {result.Word}
                   </Text>
                   <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => copyToClipboard(result.पद, 'word')}>
+                    <TouchableOpacity onPress={() => copyToClipboard(result.Word, 'word')}>
                       <Ionicons name="copy-outline" size={24} color={isDark ? '#fff' : '#555'} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => speak(result.पद)}>
+                    <TouchableOpacity onPress={() => speak(result.Word)}>
                       <Ionicons name="volume-high" size={24} color={isDark ? '#fff' : '#555'} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => toggleFavorite(result.पद)}>
-                      <Ionicons name={favorites.includes(result.पद) ? 'heart' : 'heart-outline'} size={24} color={favorites.includes(result.पद) ? 'red' : (isDark ? '#aaa' : '#555')} />
+                    <TouchableOpacity onPress={() => toggleFavorite(result.Word)}>
+                      <Ionicons
+                        name={favorites.includes(result.Word) ? 'heart' : 'heart-outline'}
+                        size={24}
+                        color={favorites.includes(result.Word) ? 'red' : (isDark ? '#aaa' : '#555')}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {result.लिंग && (
+                {result.Gender && (
                   <View style={styles.detailRow}>
                     <Text style={[styles.label, isDark && styles.lightText]}>Gender:</Text>
-                    <Text style={[styles.value, isDark && styles.lightText]}>{result.लिंग}</Text>
+                    <Text style={[styles.value, isDark && styles.lightText]}>{result.Gender}</Text>
                   </View>
                 )}
 
-                {result.व्याख्या && (
+                {result.Description && (
                   <View style={styles.detailRow}>
                     <View style={styles.meaningHeader}>
-                      <Text style={[styles.label, isDark && styles.lightText]}>Meaning:</Text>
-                      <TouchableOpacity onPress={() => copyToClipboard(result.व्याख्या, 'meaning')} style={styles.copyButton}>
+                      <Text style={[styles.label, isDark && styles.lightText]}>Description:</Text>
+                      <TouchableOpacity onPress={() => copyToClipboard(result.Description || '', 'meaning')} style={styles.copyButton}>
                         <Ionicons name="copy-outline" size={20} color={isDark ? '#fff' : '#555'} />
                       </TouchableOpacity>
                     </View>
-                    <Text style={[styles.value, isDark && styles.lightText]}>{result.व्याख्या}</Text>
+                    <Text style={[styles.value, isDark && styles.lightText]}>{result.Description}</Text>
                   </View>
                 )}
 
-                {result.सन्दर्भ && (
+                {result.Reference && (
                   <View style={styles.detailRow}>
                     <Text style={[styles.label, isDark && styles.lightText]}>Reference:</Text>
-                    <Text style={[styles.value, isDark && styles.lightText]}>{result.सन्दर्भ}</Text>
+                    <Text style={[styles.value, isDark && styles.lightText]}>{result.Reference}</Text>
                   </View>
                 )}
 
-                {result.मराठी_अर्थ && (
+                {result.Meaning && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.label, isDark && styles.lightText]}>Marathi:</Text>
-                    <Text style={[styles.value, isDark && styles.lightText]}>{result.मराठी_अर्थ}</Text>
+                    <Text style={[styles.label, isDark && styles.lightText]}>Meaning:</Text>
+                    <Text style={[styles.value, isDark && styles.lightText]}>{result.Meaning}</Text>
+                  </View>
+                )}
+
+                {result.Book && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.label, isDark && styles.lightText]}>Book:</Text>
+                    <Text style={[styles.value, isDark && styles.lightText]}>{result.Book}</Text>
                   </View>
                 )}
               </View>
             ))}
 
-            {/* Bottom Pagination */}
             {totalPages > 1 && (
               <View style={[styles.bottomPagination, isDark && styles.darkPagination]}>
-                <TouchableOpacity onPress={goToPrevPage} disabled={currentPage === 1} style={[styles.pageButton, currentPage === 1 && styles.disabledButton]}>
+                <TouchableOpacity
+                  onPress={goToPrevPage}
+                  disabled={currentPage === 1}
+                  style={[styles.pageButton, currentPage === 1 && styles.disabledButton]}
+                >
                   <Ionicons name="chevron-back" size={24} color={currentPage === 1 ? '#ccc' : (isDark ? '#fff' : '#00796b')} />
                 </TouchableOpacity>
                 <Text style={[styles.pageText, isDark && styles.lightText]}>
                   Page {currentPage} of {totalPages}
                 </Text>
-                <TouchableOpacity onPress={goToNextPage} disabled={currentPage === totalPages} style={[styles.pageButton, currentPage === totalPages && styles.disabledButton]}>
+                <TouchableOpacity
+                  onPress={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  style={[styles.pageButton, currentPage === totalPages && styles.disabledButton]}
+                >
                   <Ionicons name="chevron-forward" size={24} color={currentPage === totalPages ? '#ccc' : (isDark ? '#fff' : '#00796b')} />
                 </TouchableOpacity>
               </View>
@@ -239,9 +300,6 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 10,
   },
-  resultsHeaderOnly: {
-    marginBottom: 15,
-  },
   noResults: {
     fontSize: 18,
     textAlign: 'center',
@@ -256,10 +314,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
   darkCard: {

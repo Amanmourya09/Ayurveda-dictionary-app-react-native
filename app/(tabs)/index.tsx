@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import Entypo from '@expo/vector-icons/Entypo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -16,88 +17,64 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import API from '../utils/api';
-
-interface DictionaryEntry {
-  _id: string;
-  पद: string;
-  लिंग?: string;
-  व्याख्या?: string;
-  सन्दर्भ?: string;
-  मराठी_अर्थ?: string;
-}
-
-function debounce(func: (...args: any[]) => void, delay: number) {
-  let timeout: NodeJS.Timeout;
-  return function (...args: any[]) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), delay);
-  };
-}
+import HindiKeyboard from '../../components/HindiKeyboard';
 
 export default function HomeScreen() {
   const [word, setWord] = useState('');
-  const [suggestions, setSuggestions] = useState<DictionaryEntry[]>([]);
   const [history, setHistory] = useState<string[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 10;
+  const [showHindiKeyboard, setShowHindiKeyboard] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     loadHistory();
   }, []);
 
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!word.trim()) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `https://inputtools.google.com/request?itc=hi-t-i0-und&num=5&cp=0&cs=1&ie=utf-8&oe=utf-8&app=test&text=${word}`
+        );
+        const data = await res.json();
+        if (data[0] === 'SUCCESS') {
+          setSuggestions(data[1][0][1]);
+        } else {
+          setSuggestions([]);
+        }
+      } catch (err) {
+        console.error('Suggestion fetch error:', err);
+        setSuggestions([]);
+      }
+    };
+
+    const timer = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timer);
+  }, [word]);
+
   const loadHistory = async () => {
-    const stored = await AsyncStorage.getItem('searchHistory');
-    if (stored) setHistory(JSON.parse(stored));
+    try {
+      const stored = await AsyncStorage.getItem('searchHistory');
+      if (stored) setHistory(JSON.parse(stored));
+    } catch (error) {
+      console.error('Error loading history:', error);
+    }
   };
 
   const saveToHistory = async (term: string) => {
-    const updated = [term, ...history.filter(item => item !== term)].slice(0, 5);
-    setHistory(updated);
-    await AsyncStorage.setItem('searchHistory', JSON.stringify(updated));
-  };
-
-  const fetchSuggestions = async (input: string) => {
-    if (!input) {
-      setSuggestions([]);
-      setCurrentPage(1);
-      setTotalPages(1);
-      return;
-    }
-
-    setIsSearching(true);
     try {
-      const response = await API.get('/word', {
-        params: {
-          word: input,
-          filter: selectedFilter || undefined
-        }
-      });
-
-      if (response.data.success) {
-        const allResults = response.data.results || [];
-        setSuggestions(allResults);
-        setTotalPages(Math.ceil(allResults.length / itemsPerPage));
-        setCurrentPage(1);
-      } else {
-        setSuggestions([]);
-        setTotalPages(1);
-        setCurrentPage(1);
-      }
+      const updated = [term, ...history.filter(item => item !== term)].slice(0, 5);
+      setHistory(updated);
+      await AsyncStorage.setItem('searchHistory', JSON.stringify(updated));
     } catch (error) {
-      console.error('Search error:', error);
-      setSuggestions([]);
-      setTotalPages(1);
-      setCurrentPage(1);
-    } finally {
-      setIsSearching(false);
+      console.error('Error saving history:', error);
     }
   };
-
-  const debouncedFetch = debounce(fetchSuggestions, 500);
 
   const handleSearch = () => {
     if (!word.trim()) return;
@@ -106,47 +83,25 @@ export default function HomeScreen() {
       pathname: '/results',
       params: {
         word: word.trim(),
-        filter: selectedFilter || undefined
+        filter: selectedFilter || 'Word'
       }
     });
   };
 
-  const handleSuggestionSelect = (item: DictionaryEntry) => {
-    setWord(item.पद);
-    saveToHistory(item.पद);
-    router.push({
-      pathname: '/results',
-      params: {
-        word: item.पद,
-        filter: selectedFilter || undefined
-      }
-    });
+  const toggleFilter = (filter: string) => {
+    setSelectedFilter(prev => prev === filter ? '' : filter);
   };
 
-  const toggleFilter = (filterName: string) => {
-    const newFilter = selectedFilter === filterName ? null : filterName;
-    setSelectedFilter(newFilter);
-    if (word) {
-      fetchSuggestions(word);
-    }
+  const handleKeyPress = (char: string) => {
+    setWord(prev => prev + char);
   };
 
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  const handleBackspace = () => {
+    setWord(prev => prev.slice(0, -1));
   };
 
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const getPaginatedResults = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return suggestions.slice(startIndex, endIndex);
+  const handleSpace = () => {
+    setWord(prev => prev + ' ');
   };
 
   return (
@@ -157,125 +112,141 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <Text style={styles.title}>🌿 आयुर्वेद-शब्दार्थबोधिका</Text>
-
-          <View style={styles.searchRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Search Sanskrit words..."
-              placeholderTextColor="#999"
-              value={word}
-              onChangeText={(text) => {
-                setWord(text);
-                debouncedFetch(text);
-              }}
-              onSubmitEditing={handleSearch}
+        <View style={{ flex: 1, position: 'relative' }}>
+          <ScrollView
+            contentContainerStyle={styles.centeredContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
             />
-            {word ? (
-              <TouchableOpacity onPress={() => setWord('')}>
-                <Ionicons name="close-circle" size={24} color="#999" />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={handleSearch}
-              disabled={isSearching}
-            >
-              {isSearching ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.searchButtonText}>Search</Text>
-              )}
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.filtersContainer}>
-            <Text style={styles.filterTitle}>Filters:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {['पद', 'व्याख्या', 'सन्दर्भ'].map((filter) => (
-                <TouchableOpacity
-                  key={filter}
-                  style={[
-                    styles.filterButton,
-                    selectedFilter === filter && styles.activeFilter
-                  ]}
-                  onPress={() => toggleFilter(filter)}
-                >
-                  <Text style={styles.filterButtonText}>{filter}</Text>
+            <Text style={styles.title}> आयुर्वेद-शब्दार्थबोधिका</Text>
+
+            <View style={styles.searchRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Search Sanskrit words..."
+                placeholderTextColor="#999"
+                value={word}
+                onChangeText={setWord}
+                onFocus={() => setShowHindiKeyboard(false)}
+                returnKeyType="search"
+                onSubmitEditing={handleSearch}
+              />
+
+              {word ? (
+                <TouchableOpacity onPress={() => setWord('')}>
+                  <Ionicons name="close-circle" size={24} color="#999" />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              ) : null}
 
-          {history.length > 0 && !word && (
-            <View style={styles.historyContainer}>
-              <Text style={styles.sectionTitle}>Recent Searches</Text>
-              <View style={styles.historyList}>
-                {history.map((item, index) => (
+              <TouchableOpacity
+                onPress={() => setShowHindiKeyboard(prev => !prev)}
+                style={{ marginLeft: 10 }}
+              >
+                <Entypo name="keyboard" size={24} color="black" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={handleSearch}
+                disabled={isSearching}
+              >
+                {isSearching ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.searchButtonText}>Search</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Hindi Suggestions */}
+            {suggestions.length > 0 && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 6, elevation: 2, marginTop: 5 }}>
+                {suggestions.map((item, index) => (
                   <TouchableOpacity
                     key={index}
-                    style={styles.historyItem}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 15,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#eee',
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}
                     onPress={() => {
                       setWord(item);
-                      handleSearch();
+                      saveToHistory(item);
+                      router.push({
+                        pathname: '/results',
+                        params: { word: item, filter: selectedFilter },
+                      });
                     }}
                   >
-                    <Text style={styles.historyText}>{item}</Text>
+                    <Ionicons name="search" size={18} color="#555" style={{ marginRight: 8 }} />
+                    <Text style={{ fontSize: 16 }}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Filters */}
+            <View style={styles.filtersContainer}>
+              <Text style={styles.filterTitle}>Filters:</Text>
+              <View style={styles.filterButtons}>
+                {['Word', 'Description', 'Reference', 'Book'].map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[
+                      styles.filterButton,
+                      selectedFilter === filter && styles.activeFilter,
+                    ]}
+                    onPress={() => toggleFilter(filter)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        selectedFilter === filter && styles.activeFilterText,
+                      ]}
+                    >
+                      {filter}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-          )}
 
-          {suggestions.length > 0 && (
-            <View style={styles.resultsContainer}>
-              <View style={styles.resultsHeader}>
-                <Text style={styles.sectionTitle}>Search Results</Text>
-                {totalPages > 1 && (
-                  <View style={styles.paginationContainer}>
+            {/* Recent Searches */}
+            {history.length > 0 && !word && (
+              <View style={styles.historyContainer}>
+                <Text style={styles.sectionTitle}>Recent Searches</Text>
+                <View style={styles.historyList}>
+                  {history.map((item, index) => (
                     <TouchableOpacity
-                      onPress={goToPrevPage}
-                      disabled={currentPage === 1}
-                      style={[styles.pageButton, currentPage === 1 && styles.disabledButton]}
+                      key={index}
+                      style={styles.historyItem}
+                      onPress={() => {
+                        setWord(item);
+                        handleSearch();
+                      }}
                     >
-                      <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? '#ccc' : '#00796b'} />
+                      <Text style={styles.historyText}>{item}</Text>
                     </TouchableOpacity>
-                    <Text style={styles.pageText}>
-                      Page {currentPage} of {totalPages}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={goToNextPage}
-                      disabled={currentPage === totalPages}
-                      style={[styles.pageButton, currentPage === totalPages && styles.disabledButton]}
-                    >
-                      <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? '#ccc' : '#00796b'} />
-                    </TouchableOpacity>
-                  </View>
-                )}
+                  ))}
+                </View>
               </View>
-              <FlatList
-                data={getPaginatedResults()}
-                keyExtractor={(item) => item._id}
-                scrollEnabled={false}
-                renderItem={({ item, index }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.resultItem,
-                      { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f2f2f2' }
-                    ]}
-                    onPress={() => handleSuggestionSelect(item)}
-                  >
-                    <Text style={styles.resultText}>{item.पद}</Text>
-                    {item.मराठी_अर्थ && (
-                      <Text style={styles.subText}>{item.मराठी_अर्थ}</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
+            )}
+          </ScrollView>
+
+          {showHindiKeyboard && (
+            <HindiKeyboard
+              onKeyPress={handleKeyPress}
+              onBackspace={handleBackspace}
+              onSpace={handleSpace}
+            />
           )}
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -283,15 +254,23 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    paddingTop: 26,
     flex: 1,
     backgroundColor: '#fff',
   },
+  centeredContent: {
+    flexGrow: 1,
+    padding: 20,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    alignSelf: 'center',
+    marginBottom: 10,
+    resizeMode: 'contain',
+  },
   container: {
     flex: 1,
-  },
-  scrollContainer: {
-    padding: 20,
-    paddingTop: 10,
   },
   title: {
     fontSize: 24,
@@ -308,7 +287,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 15,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   input: {
     flex: 1,
@@ -329,6 +308,7 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     marginBottom: 15,
+    marginTop: 10,
   },
   filterTitle: {
     fontSize: 16,
@@ -336,12 +316,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#555',
   },
+  filterButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
   filterButton: {
     backgroundColor: '#e0f7fa',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 10,
+    marginRight: 8,
+    marginBottom: 8,
   },
   activeFilter: {
     backgroundColor: '#4CAF50',
@@ -350,17 +336,11 @@ const styles = StyleSheet.create({
     color: '#00796b',
     fontWeight: '500',
   },
+  activeFilterText: {
+    color: '#fff',
+  },
   historyContainer: {
     marginTop: 15,
-  },
-  resultsContainer: {
-    marginTop: 15,
-  },
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -381,34 +361,5 @@ const styles = StyleSheet.create({
   },
   historyText: {
     color: '#00796b',
-  },
-  resultItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  resultText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  subText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  paginationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pageButton: {
-    padding: 5,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  pageText: {
-    marginHorizontal: 10,
-    color: '#555',
   },
 });

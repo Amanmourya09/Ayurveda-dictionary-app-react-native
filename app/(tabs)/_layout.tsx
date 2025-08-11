@@ -1,4 +1,3 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
@@ -25,7 +24,7 @@ export default function Layout() {
           else if (route.name === 'results') iconName = 'search';
           else if (route.name === 'favorites') iconName = 'heart';
           else if (route.name === 'about') iconName = 'information-circle';
-          else iconName = 'leaf';
+          else iconName = 'help-circle-outline'; // <-- Changed from 'leaf'
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -34,7 +33,27 @@ export default function Layout() {
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="results" options={{ title: 'Results' }} />
       <Tabs.Screen name="favorites" options={{ title: 'Favorites' }} />
+      <Tabs.Screen
+        name="glossary"
+        options={{
+          tabBarLabel: 'Glossary',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen name="about" options={{ title: 'About' }} />
+
+      {/* ✅ New How To Tab */}
+      <Tabs.Screen
+        name="howto"
+        options={{
+          tabBarLabel: 'How To',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="help-circle-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
