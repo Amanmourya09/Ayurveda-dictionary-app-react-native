@@ -20,7 +20,7 @@ export default function HowToUseScreen() {
         <Text style={styles.step}>📋 8. Tap the copy icon to copy the word or its meaning.</Text>
 
         <Text style={[styles.step, { marginTop: 20, fontWeight: '600' }]}>
-          Enjoy learning and exploring Ayurveda through words!
+          Enjoy learning and exploring Ayurveda through words
         </Text>
       </ScrollView>
     </SafeAreaView>
