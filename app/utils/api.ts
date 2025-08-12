@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { CCRAS_API } from '../../config'
 
 const API = axios.create({
-  baseURL: 'https://dictionary.ccras.org.in/api/',
+  baseURL:CCRAS_API,
   headers: {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true' 
