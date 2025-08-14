@@ -1,50 +1,123 @@
-# Welcome to your Expo app 👋
+#  Ayurveda Shabdkosh
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![React Native](https://img.shields.io/badge/React_Native-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-%23D04A37.svg?style=for-the-badge&logo=Expo&logoColor=white)](https://expo.dev/)
 
-## Get started
+ **"आयुर्वेद-शब्दार्थबोधिका"** 
 
-1. Install dependencies
+A mobile dictionary app to search Sanskrit Ayurvedic terms with meanings, references, and audio support. Built with React Native and Expo for Android.
 
-   ```bash
-   npm install
-   ```
+![App Logo](assets/icon.png) 
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 📖 Description
 
-In the output, you'll find options to open the app in a
+**Ayurveda Shabdkosh** is a modern digital Ayurvedic dictionary that combines multiple Sanskrit-Ayurvedic dictionaries into a single searchable platform. It helps students, researchers, and practitioners of Ayurveda to quickly find meanings, references, and pronunciations of classical terms.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Whether you're studying Charaka Samhita or translating ancient texts, this app simplifies access to authentic Ayurvedic terminology.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## ✨ Features
 
-When you're ready, run:
+- 🔍 **Search in Devanagari or Roman script** with Google Input Tools support
+- 📚 **Filter results** by Word, Description, Reference, or Book
+- ❤️ **Save favorites** for quick access
+- 🕰️ **Recent search history** stored locally
+- 🔊 **Text-to-Speech** to hear Sanskrit pronunciation
+- 📋 **Copy word or meaning** to clipboard
+- 📖 **Glossary** with Hindi alphabet grid for browsing
+- 📱 **Offline-ready** using AsyncStorage
+- 🌐 **Light/Dark mode** support
+- 📄 **About & How-to-Use** guides included
 
+---
+## 🛠️ Tech Stack
+
+- **Frontend**: React Native (Expo)
+- **Navigation**: Expo Router
+- **State & Storage**: AsyncStorage (for favorites & history)
+- **API**: Custom backend (`/index.php`) for dictionary data
+- **UI Components**: React Native Elements, Expo Icons
+- **Text-to-Speech**: `expo-speech`
+- **Clipboard**: `expo-clipboard`
+- **Keyboard**: Custom Hindi keyboard with Google Input Tools API
+
+---
+
+## 📦 Installation
+
+Follow these steps to run the app on your local machine:
+
+### 1. Clone the Repository
 ```bash
-npm run reset-project
-```
+git clone https://github.com/Amanmourya09/Ayurveda-dictionary-app-react-native
+cd ayurveda-shabdarthabodhika
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install Dependencies
+   npm install
 
-## Learn more
+3. Install Expo CLI (if not installed)
+   npm install -g expo-cli
 
-To learn more about developing your project with Expo, look at the following resources:
+▶️ Running the App
+Using Expo Go (Recommended for Testing)
+   npx expo start
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Scan the QR code with Expo Go app on your Android device.
+Or run in emulator: npx expo start --android
 
-## Join the community
+How to Use
+Search: Type a Sanskrit word in Devanagari or Roman script.
+Filter: Use filters to search in Word, Description, Reference, or Book.
+Results: Tap any result to view details.
+Actions:
+❤️ Tap heart to favorite a word
+🔊 Tap speaker to hear the word
+📋 Tap copy icon to copy word/meaning
+Glossary: Browse words by Hindi alphabet.
+Favorites: View and manage saved words.
 
-Join our community of developers creating universal apps.
+src/
+├── screens/
+│   ├── index.tsx           # Home Screen
+│   ├── results.tsx         # Search Results
+│   ├── favorites.tsx       # Favorite Words
+│   ├── glossary.tsx        # Alphabetical Browse
+│   ├── about.tsx           # About Ayurveda & App
+│   └── howto.tsx           # Usage Guide
+├── components/
+│   └── HindiKeyboard.tsx   # Virtual Hindi Keyboard
+├── utils/
+│   └── api.ts              # API Configuration
+├── assets/
+│   └── logo.png            # App Logo
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+⚙️ Dependencies
+Key packages used:
+
+react-native
+expo
+@react-native-async-storage/async-storage
+expo-speech
+expo-clipboard
+@expo/vector-icons
+expo-router
+Ensure all dependencies are installed via package.json.
+
+🔮 Future Enhancements
+🌍 Multi-language support (Hindi, English, Sanskrit toggle)
+📥 Offline mode with full dictionary download
+🔊 Improved TTS with authentic Sanskrit voice
+📚 More dictionaries (Charaka, Sushruta, Ashtanga Hridaya, etc.)
+📱 iOS Support
+🔍 Voice search for hands-free input
+
+📬 Contact
+Have questions or suggestions?
+Reach out:
+
+Email: amanmourya20030709@gmail.com
+GitHub: Amanmourya09
