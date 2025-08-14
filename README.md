@@ -8,10 +8,6 @@
 
 A mobile dictionary app to search Sanskrit Ayurvedic terms with meanings, references, and audio support. Built with React Native and Expo for Android.
 
-![App Logo](assets/icon.png) 
-
----
-
 ## 📖 Description
 
 **Ayurveda Shabdkosh** is a modern digital Ayurvedic dictionary that combines multiple Sanskrit-Ayurvedic dictionaries into a single searchable platform. It helps students, researchers, and practitioners of Ayurveda to quickly find meanings, references, and pronunciations of classical terms.
